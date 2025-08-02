@@ -6,24 +6,49 @@ from django.contrib.auth.models import User
 
 
 class Listing(models.Model):
+    PROPERTY_TYPES = [
+        ('apartment', 'Apartment'),
+        ('house', 'House'),
+        ('villa', 'Villa'),
+        ('cabin', 'Cabin'),
+    ]
+    
     listing_id = models.UUIDField(primary_key=True, default=uuid, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField()
     location = models.CharField(max_length=255)
+    address = models.CharField(max_length=255)
+    property_type = models.CharField(max_length=20, choices=PROPERTY_TYPES)
     price_per_night = models.DecimalField(max_digits=8, decimal_places=2)
     available_from = models.DateField()
     available_to = models.DateField()
+    bedrooms = models.PositiveIntegerField()
+    bathrooms = models.PositiveIntegerField()
+    max_guests = models.PositiveIntegerField()
+    amenities = models.JSONField(default=list)  # ['Wifi', 'Pool', 'Kitchen']
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    #ahme..
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['property_type']),
+            models.Index(fields=['price_per_night']),
+        ]
+    
     def __str__(self):
-        return self.title
+            return f"{self.title} - {self.property_type}"
+    
+    
 
 class Booking(models.Model):
     class StatusChoices(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         CONFIRMED = 'CONFIRMED', 'Confirmed'
         CANCELLED = 'CANCELLED', 'Cancelled'
+        COMPLETED = 'COMPLETED', 'Completed'
         
     booking_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -31,15 +56,20 @@ class Booking(models.Model):
     customer_name = models.CharField(max_length=255)
     start_date = models.DateField()
     end_date = models.DateField()
+    special_requests = models.TextField(blank=True)
     total_price = models.BigIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=10, choices=StatusChoices.choices, default=StatusChoices.PENDING)
     
     class Meta:
         unique_together = ('user', 'listing', 'start_date', 'end_date')
+        ordering = ['-start_date']
+        constraints = [models.CheckConstraint(check=models.Q(end_date__gt=models.F('start_date')), name='check_booking_dates')]
 
     def __str__(self):
         return f"{self.customer_name} booking {self.listing.title}"
+
+
 
 
 class Review(models.Model):
@@ -50,9 +80,11 @@ class Review(models.Model):
     rating = models.PositiveIntegerField()
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         unique_together = ('user', 'listing')
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"Review by {self.reviewer_name} on {self.listing.title}"

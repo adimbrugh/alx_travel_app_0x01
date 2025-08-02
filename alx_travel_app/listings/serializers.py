@@ -10,9 +10,7 @@ class ListingSerializer(serializers.ModelSerializer):
         model = Listing
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at')
-        extra_kwargs = {
-            'price_per_night': {'min_value': 0}
-        }
+        extra_kwargs = {'price_per_night': {'min_value': 0}}
         validators = [
             serializers.UniqueTogetherValidator(
                 queryset=Listing.objects.all(),
@@ -22,12 +20,18 @@ class ListingSerializer(serializers.ModelSerializer):
         ]
         
 
+
 class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at')
         
+    def validate(self, data):
+        if data['end_date'] <= data['start_date']:
+            raise serializers.ValidationError("End date must be after start date")
+        return data
+
 
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
